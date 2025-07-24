@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Pitch Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: rgb(0, 0, 0);
+            padding: 10px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 400px;
+        }
+
+ 
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="padding: 20px;"> Audio Pitch Controller</h1>
+        <hr>
+        
+        <div class="file-input-container" style="padding: 20px;">
+            <div class="file-input-wrapper">
+                <input type="file" id="audioFile" accept="audio/*" />
+            </div>
+        </div>
+
+        <div class="controls hidden" id="controls">
+            <div class="control-group">
+                <label for="pitchSlider">Pitch Control</label>
+                <div class="slider-container">
+                    <div class="value-display" id="pitchValue">0%</div>
+                    <input type="range" id="pitchSlider" min="-100" max="100" step="1" value="0" />
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="volumeSlider">Volume</label>
+                <div class="slider-container">
+                    <div class="value-display" id="volumeValue">100%</div>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" />
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button id="playBtn" class="play-btn">▶️ Play</button>
+                <button id="stopBtn" class="stop-btn">⏹️ Stop</button>
+                <button id="resetBtn" class="reset-btn">🔄 Reset</button>
+            </div>
+        </div>
+
+        <div class="status" id="status">Select an audio file to get started</div>
+    </div>
+
+    <script>
+        let audioContext;
+        let audioBuffer;
+        let source;
+        let gainNode;
+        let isPlaying = false;
+        let startTime = 0;
+        let pauseTime = 0;
+
+        const audioFile = document.getElementById('audioFile');
+        const controls = document.getElementById('controls');
+        const pitchSlider = document.getElementById('pitchSlider');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const pitchValue = document.getElementById('pitchValue');
+        const volumeValue = document.getElementById('volumeValue');
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const status = document.getElementById('status');
+
+        // Initialize audio context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        // Convert pitch percentage to playback rate
+        function pitchToPlaybackRate(pitchPercent) {
+            // Convert -100% to +100% range to 0.5x to 2x playback rate
+            // -100% = 0.5x (one octave down)
+            // 0% = 1x (original pitch)
+            // +100% = 2x (one octave up)
+            return 1 + (pitchPercent / 100);
+        }
+
+        // Update slider value displays
+        function updateSliderDisplay(slider, display, suffix = '') {
+            const value = parseFloat(slider.value);
+            if (slider.id === 'pitchSlider') {
+                display.textContent = (value >= 0 ? '+' : '') + value.toFixed(0) + suffix;
+            } else {
+                display.textContent = value.toFixed(1) + suffix;
+            }
+            
+            // Position the value display
+            const percent = ((value - slider.min) / (slider.max - slider.min)) * 100;
+            display.style.left = percent + '%';
+        }
+
+        // Load audio file
+        audioFile.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                initAudioContext();
+                
+                status.textContent = 'Loading audio file...';
+                status.className = 'status';
+                
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                controls.classList.remove('hidden');
+                status.textContent = `✅ Audio loaded: ${file.name}`;
+                status.className = 'status success';
+                
+                // Enable controls
+                playBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Error loading audio:', error);
+                status.textContent = '❌ Error loading audio file. Please try a different file.';
+                status.className = 'status error';
+            }
+        });
+
+        // Play audio with pitch control
+function playAudio() {
+    if (!audioBuffer || isPlaying) return;
+
+    try {
+        source = audioContext.createBufferSource();
+        gainNode = audioContext.createGain();
+
+        source.buffer = audioBuffer;
+        source.loop = true;
+        source.loopStart = 0.3;
+        source.loopEnd = audioBuffer.duration-0.3;
+
+        source.playbackRate.value = pitchToPlaybackRate(parseFloat(pitchSlider.value));
+        gainNode.gain.value = parseFloat(volumeSlider.value);
+
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        source.start(0); // Always start from 0 for seamless loop
+        startTime = audioContext.currentTime;
+        pauseTime = 0;
+        isPlaying = true;
+
+        playBtn.textContent = '⏸️ Pause';
+        status.textContent = '🎵 Playing audio...';
+        status.className = 'status success';
+    } catch (error) {
+        console.error('Error playing audio:', error);
+        status.textContent = '❌ Error playing audio';
+        status.className = 'status error';
+    }
+}
+
+
+        // Stop audio
+        function stopAudio() {
+            if (source && isPlaying) {
+                source.stop();
+                pauseTime = audioContext.currentTime - startTime;
+                isPlaying = false;
+                
+                playBtn.textContent = '▶️ Play';
+                status.textContent = '⏹️ Audio stopped';
+                status.className = 'status';
+            }
+        }
+
+        // Reset audio
+        function resetAudio() {
+            stopAudio();
+            pauseTime = 0;
+            pitchSlider.value = 0;
+            volumeSlider.value = 1;
+            updateSliderDisplay(pitchSlider, pitchValue, '%');
+            updateSliderDisplay(volumeSlider, volumeValue, '%');
+            
+            status.textContent = '🔄 Audio reset to default settings';
+            status.className = 'status';
+        }
+
+        // Real-time pitch control
+        pitchSlider.addEventListener('input', (e) => {
+            updateSliderDisplay(pitchSlider, pitchValue, '%');
+            
+            if (source && isPlaying) {
+                source.playbackRate.value = pitchToPlaybackRate(parseFloat(e.target.value));
+            }
+        });
+
+        // Real-time volume control
+        volumeSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            updateSliderDisplay(volumeSlider, volumeValue, '%');
+            volumeValue.textContent = Math.round(value * 100) + '%';
+            
+            if (gainNode) {
+                gainNode.gain.value = value;
+            }
+        });
+
+        // Button event listeners
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                stopAudio();
+            } else {
+                playAudio();
+            }
+        });
+
+        stopBtn.addEventListener('click', stopAudio);
+        resetBtn.addEventListener('click', resetAudio);
+
+        // Initialize slider displays
+        updateSliderDisplay(pitchSlider, pitchValue, '%');
+        updateSliderDisplay(volumeSlider, volumeValue, '%');
+        volumeValue.textContent = '100%';
+
+        // Handle audio context state changes
+        document.addEventListener('click', () => {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        });
+    </script>
+</body>
+</html>
