@@ -62,9 +62,9 @@
             </div>
 
             <div class="buttons">
-                <button id="playBtn" class="play-btn">▶️ Play</button>
-                <button id="stopBtn" class="stop-btn">⏹️ Stop</button>
-                <button id="resetBtn" class="reset-btn">🔄 Reset</button>
+                <button id="playBtn" class="play-btn">Play</button>
+                <button id="stopBtn" class="stop-btn">Stop</button>
+                <button id="resetBtn" class="reset-btn">Reset</button>
             </div>
         </div>
 
@@ -140,7 +140,7 @@
                 audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 
                 controls.classList.remove('hidden');
-                status.textContent = `✅ Audio loaded: ${file.name}`;
+                status.textContent = `Audio loaded: ${file.name}`;
                 status.className = 'status success';
                 
                 // Enable controls
@@ -148,7 +148,7 @@
                 
             } catch (error) {
                 console.error('Error loading audio:', error);
-                status.textContent = '❌ Error loading audio file. Please try a different file.';
+                status.textContent = 'Error loading audio file.';
                 status.className = 'status error';
             }
         });
@@ -172,17 +172,17 @@ function playAudio() {
         source.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
-        source.start(0); // Always start from 0 for seamless loop
+        source.start(0); // Starts Here
         startTime = audioContext.currentTime;
         pauseTime = 0;
         isPlaying = true;
 
-        playBtn.textContent = '⏸️ Pause';
-        status.textContent = '🎵 Playing audio...';
+        playBtn.textContent = 'Pause';
+        status.textContent = 'Playing audio...';
         status.className = 'status success';
     } catch (error) {
         console.error('Error playing audio:', error);
-        status.textContent = '❌ Error playing audio';
+        status.textContent = 'Error playing audio';
         status.className = 'status error';
     }
 }
@@ -195,8 +195,8 @@ function playAudio() {
                 pauseTime = audioContext.currentTime - startTime;
                 isPlaying = false;
                 
-                playBtn.textContent = '▶️ Play';
-                status.textContent = '⏹️ Audio stopped';
+                playBtn.textContent = 'Play';
+                status.textContent = 'Audio stopped';
                 status.className = 'status';
             }
         }
@@ -210,7 +210,7 @@ function playAudio() {
             updateSliderDisplay(pitchSlider, pitchValue, '%');
             updateSliderDisplay(volumeSlider, volumeValue, '%');
             
-            status.textContent = '🔄 Audio reset to default settings';
+            status.textContent = 'Audio reset to default settings';
             status.className = 'status';
         }
 
